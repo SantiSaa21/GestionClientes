@@ -64,6 +64,9 @@ export function DocumentsTab(props: { clientId: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowser(), []);
 
+  const maxUploadMb = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? "20");
+  const maxUploadBytes = Number.isFinite(maxUploadMb) && maxUploadMb > 0 ? maxUploadMb * 1024 * 1024 : 20 * 1024 * 1024;
+
   const allowlist = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
@@ -306,6 +309,21 @@ export function DocumentsTab(props: { clientId: string }) {
       const bucket = "client-files";
 
       for (const file of fileList) {
+        const isPdf = (file.type ?? "") === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        const isImage = (file.type ?? "").startsWith("image/");
+        if (!isPdf && !isImage) {
+          setError("Solo se permiten archivos PDF o imágenes.");
+          continue;
+        }
+
+        if (file.size > maxUploadBytes) {
+          setError(
+            `El archivo “${file.name}” supera el límite de ${Math.round(maxUploadBytes / (1024 * 1024))}MB. ` +
+              "Recomendación: escanéalo en 150-200 DPI y/o comprímelo antes de subirlo."
+          );
+          continue;
+        }
+
         const safeName = file.name.replace(/[^\w.\-()\s]/g, "_");
         const path = `${props.clientId}/${doc.id}/${crypto.randomUUID()}-${safeName}`;
 
