@@ -27,6 +27,14 @@ export default function ClientFileViewerPage() {
   const clientId = params.id;
   const fileId = params.fileId;
 
+  const allowlist = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  const isUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
   const backTab = (searchParams.get("tab") ?? "documentos").toLowerCase();
 
   const [loading, setLoading] = useState(true);
@@ -53,6 +61,22 @@ export default function ClientFileViewerPage() {
       router.replace("/login");
       return false;
     }
+
+    if (!isUuid(clientId) || !isUuid(fileId)) {
+      router.replace("/clients");
+      return false;
+    }
+
+    if (allowlist.length > 0) {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = (userData.user?.email ?? "").toLowerCase();
+      if (!email || !allowlist.includes(email)) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return false;
+      }
+    }
+
     return true;
   }
 

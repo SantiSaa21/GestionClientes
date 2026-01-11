@@ -12,6 +12,11 @@ const PAGE_SIZE = 10;
 export default function ClientsPage() {
   const router = useRouter();
 
+  const allowlist = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +35,17 @@ export default function ClientsPage() {
       router.replace("/login");
       return false;
     }
+
+    if (allowlist.length > 0) {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = (userData.user?.email ?? "").toLowerCase();
+      if (!email || !allowlist.includes(email)) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return false;
+      }
+    }
+
     return true;
   }
 

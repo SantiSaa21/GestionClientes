@@ -82,6 +82,14 @@ export default function ClientDetailPage() {
   const searchParams = useSearchParams();
   const clientId = params.id;
 
+  const allowlist = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  const isUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<Client | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +168,22 @@ export default function ClientDetailPage() {
       router.replace("/login");
       return false;
     }
+
+    if (!isUuid(clientId)) {
+      router.replace("/clients");
+      return false;
+    }
+
+    if (allowlist.length > 0) {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = (userData.user?.email ?? "").toLowerCase();
+      if (!email || !allowlist.includes(email)) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return false;
+      }
+    }
+
     return true;
   }
 
